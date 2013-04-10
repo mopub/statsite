@@ -7,7 +7,7 @@ import logging
 
 
 class GraphiteStore(object):
-    def __init__(self, host="localhost", port=2003, prefix="statsite", attempts=3):
+    def __init__(self, host="localhost", port=2003, prefix="stats", attempts=3):
         """
         Implements an interface that allows metrics to be persisted to Graphite.
         Raises a :class:`ValueError` on bad arguments.
@@ -33,6 +33,7 @@ class GraphiteStore(object):
         self.attempts = attempts
         self.sock = self._create_socket()
         self.logger = logging.getLogger("statsite.graphitestore")
+        self.suffix = socket.gethostname()
 
     def flush(self, metrics):
         """
@@ -47,7 +48,7 @@ class GraphiteStore(object):
         if not self.prefix:
             lines = ["%s %s %s" % (k, v, ts) for k, v, ts in metrics]
         else:
-            lines = ["%s.%s %s %s" % (self.prefix, k, v, ts) for k, v, ts in metrics]
+            lines = ["%s.%s.%s %s %s" % (self.prefix, self.suffix, k, v, ts) for k, v, ts in metrics]
         data = "\n".join(lines) + "\n"
 
         # Serialize writes to the socket
