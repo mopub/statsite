@@ -33,7 +33,7 @@ class GraphiteStore(object):
         self.attempts = attempts
         self.sock = self._create_socket()
         self.logger = logging.getLogger("statsite.graphitestore")
-        self.suffix = socket.gethostname()
+        self.suffix = "%s-statsite" % socket.gethostname()
 
     def flush(self, metrics):
         """
@@ -48,7 +48,7 @@ class GraphiteStore(object):
         if not self.prefix:
             lines = ["%s %s %s" % (k, v, ts) for k, v, ts in metrics]
         else:
-            lines = ["%s.%s.%s %s %s" % (self.prefix, self.suffix, k, v, ts) for k, v, ts in metrics]
+            lines = ["%s.%s.%s %s %s" % (self.prefix, k.replace("counts.",""), self.suffix, v, ts) for k, v, ts in metrics]
         data = "\n".join(lines) + "\n"
 
         # Serialize writes to the socket
