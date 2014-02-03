@@ -66,7 +66,7 @@ int init_metrics(double timer_eps, double *quantiles, uint32_t num_quants, radix
 /**
  * Initializes the metrics struct, with preset configurations.
  * This defaults to a epsilon of 0.01 (1% error), and quantiles at
- * 0.5, 0.95, and 0.99.
+ * 0.5, 0.9, 0.95, and 0.99.
  * @return 0 on success.
  */
 int init_metrics_defaults(metrics *m);
