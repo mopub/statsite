@@ -7,7 +7,7 @@ import logging
 
 
 class GraphiteStore(object):
-    def __init__(self, host="localhost", port=2003, prefix="statsite", attempts=3):
+    def __init__(self, host="localhost", port=2003, prefix="statsite", attempts=3, append=None):
         """
         Implements an interface that allows metrics to be persisted to Graphite.
         Raises a :class:`ValueError` on bad arguments.
@@ -17,6 +17,7 @@ class GraphiteStore(object):
             - `port` : The port of the graphite server
             - `prefix` (optional) : A prefix to add to the keys. Defaults to 'statsite'
             - `attempts` (optional) : The number of re-connect retries before failing.
+            - `append` (optional) : A string to append to the keys with a dash. Disabled by default.
         """
         # Convert the port to an int since its coming from a configuration file
         port = int(port)
@@ -31,6 +32,7 @@ class GraphiteStore(object):
         self.port = port
         self.prefix = prefix
         self.attempts = attempts
+        self.append = append
         self.sock = self._create_socket()
         self.logger = logging.getLogger("statsite.graphitestore")
 
