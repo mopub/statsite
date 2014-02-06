@@ -17,7 +17,7 @@ Features
   - Mean
   - Min/Max
   - Standard deviation
-  - Median, Percentile 95, Percentile 99
+  - Median, Percentile 90, Percentile 95, Percentile 99
   - Histograms
 * Dynamic set implementation:
   - Exactly counts for small sets

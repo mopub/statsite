@@ -52,13 +52,13 @@ int init_metrics(double timer_eps, double *quantiles, uint32_t num_quants, radix
 /**
  * Initializes the metrics struct, with preset configurations.
  * This defaults to a timer epsilon of 0.01 (1% error), and quantiles at
- * 0.5, 0.95, and 0.99. Histograms are disabed, and the set
+ * 0.5, 0.9, 0.95, and 0.99. Histograms are disabed, and the set
  * precision is 12 (2% variance).
  * @return 0 on success.
  */
 int init_metrics_defaults(metrics *m) {
-    double quants[] = {0.5, 0.95, 0.99};
-    return init_metrics(0.01, (double*)&quants, 3, NULL, 12, m);
+    double quants[] = {0.5, 0.9, 0.95, 0.99};
+    return init_metrics(0.01, (double*)&quants, 4, NULL, 12, m);
 }
 
 /**

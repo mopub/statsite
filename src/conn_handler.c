@@ -44,8 +44,8 @@ static int handle_ascii_client_connect(statsite_conn_handler *handle);
 static int buffer_after_terminator(char *buf, int buf_len, char terminator, char **after_term, int *after_len);
 
 /* These are the quantiles we track */
-static const double QUANTILES[] = {0.5, 0.95, 0.99};
-static const int NUM_QUANTILES = 3;
+static const double QUANTILES[] = {0.5, 0.9, 0.95, 0.99};
+static const int NUM_QUANTILES = 4;
 
 // This is the magic byte that indicates we are handling
 // a binary command, instead of an ASCII command. We use
@@ -85,19 +85,19 @@ static int stream_formatter(FILE *pipe, void *data, metric_type type, char *name
     int i;
     switch (type) {
         case KEY_VAL:
-            STREAM("kv.%s|%f|%lld\n", name, *(double*)value);
+            STREAM("%s|%f|%lld\n", name, *(double*)value);
             break;
 
         case GAUGE:
-            STREAM("gauges.%s|%f|%lld\n", name, ((gauge_t*)value)->value);
+            STREAM("%s|%f|%lld\n", name, ((gauge_t*)value)->value);
             break;
 
         case COUNTER:
-            STREAM("counts.%s|%f|%lld\n", name, counter_sum(value));
+            STREAM("%s|%f|%lld\n", name, counter_sum(value));
             break;
 
         case SET:
-            STREAM("sets.%s|%lld|%lld\n", name, set_size(value));
+            STREAM("%s|%lld|%lld\n", name, set_size(value));
             break;
 
         case TIMER:
@@ -110,16 +110,17 @@ static int stream_formatter(FILE *pipe, void *data, metric_type type, char *name
             STREAM("timers.%s.count|%lld|%lld\n", name, timer_count(&t->tm));
             STREAM("timers.%s.stdev|%f|%lld\n", name, timer_stddev(&t->tm));
             STREAM("timers.%s.median|%f|%lld\n", name, timer_query(&t->tm, 0.5));
-            STREAM("timers.%s.p95|%f|%lld\n", name, timer_query(&t->tm, 0.95));
-            STREAM("timers.%s.p99|%f|%lld\n", name, timer_query(&t->tm, 0.99));
+            STREAM("timers.%s.upper_90|%f|%lld\n", name, timer_query(&t->tm, 0.9));
+            STREAM("timers.%s.upper_95|%f|%lld\n", name, timer_query(&t->tm, 0.95));
+            STREAM("timers.%s.upper_99|%f|%lld\n", name, timer_query(&t->tm, 0.99));
 
             // Stream the histogram values
             if (t->conf) {
-                STREAM("timers.%s.histogram.bin_<%0.2f|%u|%lld\n", name, t->conf->min_val, t->counts[0]);
+                STREAM("%s.histogram.bin_<%0.2f|%u|%lld\n", name, t->conf->min_val, t->counts[0]);
                 for (i=0; i < t->conf->num_bins-2; i++) {
-                    STREAM("timers.%s.histogram.bin_%0.2f|%u|%lld\n", name, t->conf->min_val+(t->conf->bin_width*i), t->counts[i+1]);
+                    STREAM("%s.histogram.bin_%0.2f|%u|%lld\n", name, t->conf->min_val+(t->conf->bin_width*i), t->counts[i+1]);
                 }
-                STREAM("timers.%s.histogram.bin_>%0.2f|%u|%lld\n", name, t->conf->max_val, t->counts[i+1]);
+                STREAM("%s.histogram.bin_>%0.2f|%u|%lld\n", name, t->conf->max_val, t->counts[i+1]);
             }
             break;
 
@@ -188,6 +189,7 @@ static int stream_formatter_bin(FILE *pipe, void *data, metric_type type, char *
             STREAM_BIN(BIN_TYPE_TIMER, BIN_OUT_MIN, timer_min(&t->tm));
             STREAM_BIN(BIN_TYPE_TIMER, BIN_OUT_MAX, timer_max(&t->tm));
             STREAM_BIN(BIN_TYPE_TIMER, BIN_OUT_PCT | 50, timer_query(&t->tm, 0.5));
+            STREAM_BIN(BIN_TYPE_TIMER, BIN_OUT_PCT | 90, timer_query(&t->tm, 0.90));
             STREAM_BIN(BIN_TYPE_TIMER, BIN_OUT_PCT | 95, timer_query(&t->tm, 0.95));
             STREAM_BIN(BIN_TYPE_TIMER, BIN_OUT_PCT | 99, timer_query(&t->tm, 0.99));
 
