@@ -7,7 +7,7 @@ import logging
 
 
 class GraphiteStore(object):
-    def __init__(self, host="localhost", port=2003, prefix="stats", attempts=3):
+    def __init__(self, host="localhost", port=2003, prefix="statsite", attempts=3):
         """
         Implements an interface that allows metrics to be persisted to Graphite.
         Raises a :class:`ValueError` on bad arguments.
@@ -33,20 +33,6 @@ class GraphiteStore(object):
         self.attempts = attempts
         self.sock = self._create_socket()
         self.logger = logging.getLogger("statsite.graphitestore")
-        self.suffix = "%s-statsite" % socket.gethostname()
-
-    def convert(self, old_str):
-	old_str = old_str.replace("p99", "mean_99")
-	old_str = old_str.replace("p95", "mean_95")
-	whole_parts = old_str.split(" ")
-	parts = whole_parts[0].split(".")
-
-        self.logger.critical("parts: %s", parts)
-	temp = parts[-1]
-	parts[-1] = parts[-2]
-	parts[-2] = temp
-	whole_parts[0] = ".".join(parts)
-	return " ".join(whole_parts)
 
     def flush(self, metrics):
         """
@@ -55,21 +41,17 @@ class GraphiteStore(object):
        :Parameters:
         - `metrics` : A list of (key,value,timestamp) tuples.
         """
+        if not metrics:
+            return
+
         # Construct the output
         metrics = [m.split("|") for m in metrics if m]
         self.logger.info("Outputting %d metrics" % len(metrics))
-        if not self.prefix:
-            lines = ["%s %s %s" % (k, v, ts) for k, v, ts in metrics]
+        if self.prefix:
+            lines = ["%s.%s %s %s" % (self.prefix, k, v, ts) for k, v, ts in metrics]
         else:
-            lines = ["%s.%s.%s %s %s" % (self.prefix, k.replace("counts.",""), self.suffix, v, ts) for k, v, ts in metrics]
-	
-	new_lines = []
-        for line in lines:
-		if ".timers." in line:
-			new_lines.append(self.convert(line))
-		else:
-			new_lines.append(line)
-	data = "\n".join(new_lines) + "\n"
+            lines = ["%s %s %s" % (k, v, ts) for k, v, ts in metrics]
+        data = "\n".join(lines) + "\n"
 
         # Serialize writes to the socket
         try:
@@ -106,6 +88,7 @@ class GraphiteStore(object):
 if __name__ == "__main__":
     # Initialize the logger
     logging.basicConfig()
+
     # Intialize from our arguments
     graphite = GraphiteStore(*sys.argv[1:])
 
@@ -113,5 +96,5 @@ if __name__ == "__main__":
     metrics = sys.stdin.read()
 
     # Flush
-    graphite.flush(metrics.split("\n"))
+    graphite.flush(metrics.splitlines())
     graphite.close()

@@ -6,6 +6,7 @@
  * front ends.
  */
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
 #include <pthread.h>
@@ -92,6 +93,10 @@ void setup_syslog() {
  * when we get signals such as SIGINT, SIGTERM.
  */
 void signal_handler(int signum) {
+    if (!SHOULD_RUN) {
+        syslog(LOG_WARNING, "Received signal [%s] while exiting! Terminating", strsignal(signum));
+        exit(1);
+    }
     SHOULD_RUN = 0;  // Stop running now
     syslog(LOG_WARNING, "Received signal [%s]! Exiting...", strsignal(signum));
 }
@@ -139,9 +144,14 @@ int main(int argc, char **argv) {
     }
 
     // Validate the config file
-    int validate_res = validate_config(config);
-    if (validate_res != 0) {
+    if (validate_config(config)) {
         syslog(LOG_ERR, "Invalid configuration!");
+        return 1;
+    }
+
+    // Build the prefix tree
+    if (build_prefix_tree(config)) {
+        syslog(LOG_ERR, "Failed to build prefix tree!");
         return 1;
     }
 
@@ -151,6 +161,7 @@ int main(int argc, char **argv) {
     // Daemonize
     if (config->daemonize) {
         pid_t pid, sid;
+        int fd;
         syslog(LOG_INFO, "Daemonizing.");
         pid = fork();
 
@@ -176,9 +187,12 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
+        if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
+          dup2(fd, STDIN_FILENO);
+          dup2(fd, STDOUT_FILENO);
+          dup2(fd, STDERR_FILENO);
+          if (fd > STDERR_FILENO) close(fd);
+        }
     }
 
     // Log that we are starting up
@@ -192,21 +206,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Start the network workers
-    pthread_t thread;
-    pthread_create(&thread, NULL, (void*(*)(void*))start_networking_worker, netconf);
-
-    /**
-     * Loop forever, until we get a signal that
-     * indicates we should shutdown.
-     */
+    // Setup signal handlers
     signal(SIGPIPE, SIG_IGN);       // Ignore SIG_IGN
     signal(SIGHUP, SIG_IGN);        // Ignore SIG_IGN
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
-    while (SHOULD_RUN) {
-        sleep(1);
-    }
+
+    // Join the networking loop, blocks until exit
+    enter_networking_loop(netconf, &SHOULD_RUN);
 
     // Begin the shutdown/cleanup
     shutdown_networking(netconf);
