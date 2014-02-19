@@ -78,7 +78,10 @@ class GraphiteStore(object):
         for k, v, ts in metrics:
             # hack to insert the hostname into the graphite namespace
             namespace = k.split('.')
-            namespace.insert(-1, self.hostname)
+            if namespace[1] == 'timers':
+                namespace.insert(-1, self.hostname)
+            else:
+                namespace.append(self.hostname)
             k = '.'.join(namespace)
             try:
                 if self.prefix and self.append:
